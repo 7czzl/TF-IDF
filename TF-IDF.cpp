@@ -12,6 +12,23 @@ using namespace boost;
 //typedef map<string, int> word_Map;
 //typedef word_Map::iterator iter_for_words;
 
+map<string, int> ignore_words;
+bool LoadIgnoreWords()
+{
+	ifstream in("ignore-words.txt");
+	if (!in)
+	{
+		cout << "\"ignore-words.txt\" is not exist!" << endl;
+		return false;
+	}
+	string word;
+	while (getline(in, word))
+	{
+		ignore_words[word] = 1;
+	}
+	cout << "Loading ignore_words complete!" << endl << endl;
+}
+
 vector<map<string, int>> wordTF;//每篇文档中单词的词频
 vector<set<string>> words_for_each_article;//每篇文档的所有不同单词
 vector<int> word_Quantity_each_article;//每篇文档的单词总数
@@ -21,7 +38,7 @@ bool LoadRawData()
 	ifstream in("raw-data.txt");
 	if (!in)
 	{
-		cout << "file is not exist!" << endl;
+		cout << "\"raw-data.txt\" is not exist!" << endl;
 		return false;
 	}
 
@@ -35,14 +52,20 @@ bool LoadRawData()
 		set<string> word_kind;//所有不同单词
 		tokenizer<>::iterator beg = tok.begin();
 		beg++;
-		int i_word = 0;
+		int i_word = 0;//文章的单词数量
+		int lower_letter = 'A' - 'a';
 		for (; beg != tok.end(); beg++)
 		{
 			bool Flag = true;
-			for (int k = 0; k < (*beg).size(); k++)
+			string word = *beg;
+			for (int k = 0; k < word.size(); k++)
 			{
-				if (((*beg)[k] >= 'a' && (*beg)[k] <= 'z') || ((*beg)[k] >= 'A' && (*beg)[k] <= 'Z'))
+				if (word[k] >= 'a' && word[k] <= 'z')
 					;
+				else if (word[k] >= 'A' && word[k] <= 'Z')
+				{
+					word[k] = word[k] - lower_letter;
+				}
 				else
 				{
 					Flag = false;
@@ -52,12 +75,15 @@ bool LoadRawData()
 			if (Flag == false)
 				continue;
 
+			/*if (ignore_words[word] == 1)
+				continue;*/
+
 			i_word++;
 			int set_size = word_kind.size();
-			word_kind.insert(*beg);
-			TF[*beg]++;
+			word_kind.insert(word);
+			TF[word]++;
 			if (word_kind.size() > set_size)
-				DF[*beg]++;
+				DF[word]++;
 		}
 		word_Quantity_each_article.push_back(i_word);
 		wordTF.push_back(TF);
@@ -65,9 +91,10 @@ bool LoadRawData()
 
 		TF.clear();
 		word_kind.clear();
-		cout << ++i_Article << endl;
+		if(++i_Article % 1000 == 0)
+			cout << i_Article << endl;
 	}
-	cout << "Finish!" << endl;
+	cout << "Loading raw_data Finish!" << endl << endl;
 	return true;
 }
 //加载Raw-Data,计算TF, DF等值
@@ -108,6 +135,8 @@ void sortMapByValue(map<string, double> tMap, vector<pair<string, double>> &tVec
 
 void CreateFeatureVector()
 {
+	ofstream out1("feature_words.txt", ios::trunc);
+	ofstream out2("feature_words_TF-IDF.txt", ios::trunc);
 	for (int i = 0; i < wordTF_IDF_each_article.size(); i++)
 	{
 		int n = 5;//特征向量维数
@@ -117,16 +146,38 @@ void CreateFeatureVector()
 			n = TF_IDF.size();
 		for (int j = 0; j < n; j++)
 		{
-			cout << TF_IDF[j].first << "(" << TF_IDF[j].second << ")  ";
+			if (ignore_words[TF_IDF[j].first] == 1)
+			{
+				if (n == TF_IDF.size())
+					continue;
+				else
+				{
+					n++;
+					continue;
+				}
+			}
+			out1 << TF_IDF[j].first << " ";
+			out2 << TF_IDF[j].second << " ";
+			//cout << TF_IDF[j].first << "(" << TF_IDF[j].second << ")  ";
 		}
-		cout << i << endl << endl;
+		out1 << endl;
+		out2 << endl;
+		if((i+1) % 1000 == 0)
+			cout << i+1 << endl;
 		TF_IDF.clear();
 	}
+	cout << "Creating TF-IDF finish!" << endl << endl;
 }
 //构造N维特征向量
 
 int main()
 {
+	if (!LoadIgnoreWords())
+	{
+		system("pause");
+		return 0;
+	}
+
 	if (!LoadRawData())
 	{
 		system("pause");
