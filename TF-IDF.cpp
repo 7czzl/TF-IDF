@@ -24,6 +24,8 @@ bool LoadIgnoreWords()
 	string word;
 	while (getline(in, word))
 	{
+		int pos = word.find(' ');
+		word = word.substr(0, pos);
 		ignore_words[word] = 1;
 	}
 	cout << "Loading ignore_words complete!" << endl << endl;
@@ -35,6 +37,7 @@ vector<int> word_Quantity_each_article;//每篇文档的单词总数
 map<string, int> DF;//包含单词w的文档数量
 bool LoadRawData()
 {
+	//ofstream out("tok-data.txt", ios::trunc);
 	ifstream in("raw-data.txt");
 	if (!in)
 	{
@@ -74,9 +77,11 @@ bool LoadRawData()
 			}
 			if (Flag == false)
 				continue;
-
+			
 			/*if (ignore_words[word] == 1)
-				continue;*/
+				;
+			else
+				out << word << " ";*/
 
 			i_word++;
 			int set_size = word_kind.size();
@@ -85,6 +90,7 @@ bool LoadRawData()
 			if (word_kind.size() > set_size)
 				DF[word]++;
 		}
+		//out << endl;
 		word_Quantity_each_article.push_back(i_word);
 		wordTF.push_back(TF);
 		words_for_each_article.push_back(word_kind);
@@ -95,6 +101,8 @@ bool LoadRawData()
 			cout << i_Article << endl;
 	}
 	cout << "Loading raw_data Finish!" << endl << endl;
+	in.close();
+	//out.close();
 	return true;
 }
 //加载Raw-Data,计算TF, DF等值
@@ -109,7 +117,7 @@ void calculateTF_IDF()
 		for (set<string>::iterator iter = words_for_each_article[i].begin(); iter != words_for_each_article[i].end(); iter++)
 		{
 			double TF = (wordTF[i][*iter] * 1.0) / word_Quantity_each_article[i];
-			double IDF = log10((wordTF.size() * 1.0) / (1 + DF[*iter]));
+			double IDF = log2((wordTF.size() * 1.0) / (1 + DF[*iter]));
 			wordTF_IDF[*iter] = TF * IDF;
 		}
 		wordTF_IDF_each_article.push_back(wordTF_IDF);
@@ -135,11 +143,14 @@ void sortMapByValue(map<string, double> tMap, vector<pair<string, double>> &tVec
 
 void CreateFeatureVector()
 {
-	ofstream out1("feature_words.txt", ios::trunc);
-	ofstream out2("feature_words_TF-IDF.txt", ios::trunc);
+	string dimension = "_12.txt";
+	string file1 = "feature_words" + dimension;
+	string file2 = "feature_words_TF-IDF" + dimension;
+	ofstream out1(file1, ios::trunc);
+	ofstream out2(file2, ios::trunc);
 	for (int i = 0; i < wordTF_IDF_each_article.size(); i++)
 	{
-		int n = 5;//特征向量维数
+		int n = 12;//特征向量维数
 		vector<pair<string, double>> TF_IDF;
 		sortMapByValue(wordTF_IDF_each_article[i], TF_IDF);
 		if (n > TF_IDF.size())
@@ -167,6 +178,8 @@ void CreateFeatureVector()
 		TF_IDF.clear();
 	}
 	cout << "Creating TF-IDF finish!" << endl << endl;
+	out1.close();
+	out2.close();
 }
 //构造N维特征向量
 
@@ -184,11 +197,7 @@ int main()
 		return 0;
 	}
 	calculateTF_IDF();
-	/*for (int i = 0; i < wordTF_IDF_each_article.size(); i++)
-	{
-		if (wordTF_IDF_each_article[i].size() < 5)
-			cout << i << ", " << wordTF_IDF_each_article[i].size() << endl;
-	}*/
+
 	CreateFeatureVector();
 
 	system("pause");
